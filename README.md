@@ -97,9 +97,10 @@ CUPS (Common UNIX Printing System) - стандартная система пе�
 **Команды:**
 
 ```bash
-check_vuln.sh
-# либо проверить прослушивание UDP/631 вручную:
-ss -ulpn | grep 631
+lsb_release -ds
+dpkg -l | grep -E 'cups-browsed|libcupsfilters2t64|libppd2:|cups-filters |cups-daemon' | awk '{print $2, $3}'
+grep -E '^BrowseRemoteProtocols' /etc/cups/cups-browsed.conf
+systemctl is-enabled cups-browsed 2>/dev/null || ls -l /etc/systemd/system/multi-user.target.wants/cups-browsed.service
 ```
 
 Дополнительно можно проверить прослушиваемые порты командой `ss -ulpn | grep 631` - наличие cups-browsed на `0.0.0.0:631` указывает на приём пакетов из сети от любого источника.
@@ -117,9 +118,9 @@ ss -ulpn | grep 631
 **Команды:**
 
 ```bash
-sudo apt-get update
-sudo apt-get install --only-upgrade \
-    cups cups-browsed cups-filters libcupsfilters2t64 libppd2
+apt-get install --only-upgrade -y cups cups-browsed cups-filters libcupsfilters2t64 libppd2 >/dev/null && echo 'Обновление завершено'
+dpkg -l | grep -E 'cups-browsed|libcupsfilters2t64|libppd2:|cups-filters |cups-daemon' | awk '{print $2, $3}'
+zcat /usr/share/doc/cups-browsed/changelog.Debian.gz | sed -n '9,24p'
 ```
 
 **Шаг 2. Отключение приёма удалённых протоколов и остановка/отключение сервиса `cups-browsed`.** Если сетевое автообнаружение принтеров не требуется, сервис рекомендуется полностью отключить (или удалить).
@@ -131,8 +132,11 @@ sudo apt-get install --only-upgrade \
 **Команды:**
 
 ```bash
-sudo sed -i 's/^BrowseRemoteProtocols.*/BrowseRemoteProtocols none/' /etc/cups/cups-browsed.conf
-sudo systemctl disable --now cups-browsed
+sed -i 's/^BrowseRemoteProtocols.*/BrowseRemoteProtocols none/' /etc/cups/cups-browsed.conf
+grep -E '^BrowseRemoteProtocols' /etc/cups/cups-browsed.conf
+systemctl disable --now cups-browsed 2>&1 | grep -v 'System has not been booted' ; systemctl is-enabled cups-browsed
+pgrep -a cups-browsed || echo 'cups-browsed не запущен'
+ss -ulpn | grep ':631' || echo 'UDP/631 не прослушивается'
 ```
 
 **Шаг 3. Ограничение доступа к порту 631 межсетевым экраном** (запрет внешних подключений, особенно по UDP).
@@ -144,8 +148,10 @@ sudo systemctl disable --now cups-browsed
 **Команды:**
 
 ```bash
-sudo iptables -A INPUT -p udp --dport 631 -j DROP
-sudo iptables -A INPUT -p tcp --dport 631 ! -s 127.0.0.1 -j DROP
+iptables -A INPUT -p udp --dport 631 -j DROP
+iptables -A INPUT -p tcp --dport 631 ! -s 127.0.0.1 -j DROP
+iptables -L INPUT -n -v --line-numbers
+grep -nE '^(Listen|Port|Browsing|BrowseLocalProtocols)' /etc/cups/cupsd.conf
 ```
 
 > В промышленной среде удобнее использовать штатный межсетевой экран дистрибутива (`ufw`/`firewalld`) и сохранять правила между перезагрузками.
@@ -189,9 +195,9 @@ Dirty Pipe - уязвимость в подсистеме каналов (pipe) 
 **Команды:**
 
 ```bash
-check_dirtypipe.sh
-# проверка на тестовых версиях:
-check_dirtypipe.sh 5.10.90 5.15.20 5.16.10 5.10.102 5.15.25 5.16.11
+uname -r
+dirtypipe_check.sh
+dirtypipe_check.sh 5.4.200 5.8.0 5.10.90 5.10.102 5.15.20 5.15.25 5.16.10 5.16.11 5.17.0
 ```
 
 ### 3.6. Устранение
@@ -205,11 +211,9 @@ check_dirtypipe.sh 5.10.90 5.15.20 5.16.10 5.10.102 5.15.25 5.16.11
 **Команды:**
 
 ```bash
-sudo apt update
-sudo apt install --only-upgrade linux-image-generic
-sudo reboot
-# после перезагрузки:
-uname -r
+apt-cache policy linux-image-generic | head -3
+apt-get install -s linux-image-generic | grep -E '^Inst linux-(image|modules)-' | cut -d'(' -f1
+# после установки: reboot, затем повторная проверка uname -r и dirtypipe_check.sh
 ```
 
 - **Ubuntu/Debian:** `sudo apt update && sudo apt install --only-upgrade linux-image-generic`, затем перезагрузка.
