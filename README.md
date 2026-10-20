@@ -5,7 +5,6 @@
 ![Platform](https://img.shields.io/badge/platform-Linux-informational)
 ![Docker](https://img.shields.io/badge/CUPS%20lab-Docker-blue)
 ![Vagrant](https://img.shields.io/badge/Dirty%20Pipe%20lab-Vagrant-9cf)
-![Purpose](https://img.shields.io/badge/purpose-education%20only-success)
 
 > **Только для обучения в изолированной среде.** Стенды намеренно содержат устаревшие (уязвимые) компоненты, поэтому их нельзя подключать к рабочим сетям или публиковать порты наружу. Рабочий эксплойт-код в проект **не включён** - предоставлены только средства обнаружения уязвимого состояния и его устранения.
 
