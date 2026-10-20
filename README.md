@@ -94,6 +94,14 @@ CUPS (Common UNIX Printing System) - стандартная система пе�
 
 *Рис. 1. Исходное (уязвимое) состояние: установлены старые версии пакетов (cups-browsed 2.0.0-0ubuntu10, cups-filters 2.0.0-0ubuntu4), включён `BrowseRemoteProtocols`, сервис cups-browsed активен.*
 
+**Команды:**
+
+```bash
+check_vuln.sh
+# либо проверить прослушивание UDP/631 вручную:
+ss -ulpn | grep 631
+```
+
 Дополнительно можно проверить прослушиваемые порты командой `ss -ulpn | grep 631` - наличие cups-browsed на `0.0.0.0:631` указывает на приём пакетов из сети от любого источника.
 
 ### 2.7. Устранение уязвимостей
@@ -106,17 +114,39 @@ CUPS (Common UNIX Printing System) - стандартная система пе�
 
 *Рис. 2. Обновление пакетов. Версии после установки обновлений: cups-browsed 2.0.0-0ubuntu10.3, cups-filters 2.0.0-0ubuntu4.1, libcupsfilters 2.0.0-0ubuntu7.2, libppd 2.0.0-0ubuntu4.1. В changelog видно применение патчей для CVE-2024-47176.*
 
+**Команды:**
+
+```bash
+sudo apt-get update
+sudo apt-get install --only-upgrade \
+    cups cups-browsed cups-filters libcupsfilters2t64 libppd2
+```
+
 **Шаг 2. Отключение приёма удалённых протоколов и остановка/отключение сервиса `cups-browsed`.** Если сетевое автообнаружение принтеров не требуется, сервис рекомендуется полностью отключить (или удалить).
 
 ![Рис. 3. Отключение cups-browsed](screenshots/03_cups_harden.png)
 
 *Рис. 3. `BrowseRemoteProtocols` переведён в `none`, сервис cups-browsed отключён (disabled) и остановлен, UDP-порт 631 более не прослушивается.*
 
+**Команды:**
+
+```bash
+sudo sed -i 's/^BrowseRemoteProtocols.*/BrowseRemoteProtocols none/' /etc/cups/cups-browsed.conf
+sudo systemctl disable --now cups-browsed
+```
+
 **Шаг 3. Ограничение доступа к порту 631 межсетевым экраном** (запрет внешних подключений, особенно по UDP).
 
 ![Рис. 4. Правила межсетевого экрана](screenshots/04_cups_firewall.png)
 
 *Рис. 4. Правила iptables: входящий трафик на UDP/631 отбрасывается, TCP/631 разрешён только с локального адреса (127.0.0.1).*
+
+**Команды:**
+
+```bash
+sudo iptables -A INPUT -p udp --dport 631 -j DROP
+sudo iptables -A INPUT -p tcp --dport 631 ! -s 127.0.0.1 -j DROP
+```
 
 > В промышленной среде удобнее использовать штатный межсетевой экран дистрибутива (`ufw`/`firewalld`) и сохранять правила между перезагрузками.
 
@@ -156,6 +186,14 @@ Dirty Pipe - уязвимость в подсистеме каналов (pipe) 
 
 *Рис. 5. Проверка версии ядра. Скрипт корректно помечает тестовые версии 5.10.90, 5.15.20, 5.16.10 как УЯЗВИМЫЕ, а 5.10.102, 5.15.25, 5.16.11 - как исправленные.*
 
+**Команды:**
+
+```bash
+check_dirtypipe.sh
+# проверка на тестовых версиях:
+check_dirtypipe.sh 5.10.90 5.15.20 5.16.10 5.10.102 5.15.25 5.16.11
+```
+
 ### 3.6. Устранение
 
 Единственный надёжный способ - обновление ядра до исправленной версии и перезагрузка. Промежуточных обходных путей, кроме обновления, для Dirty Pipe по сути нет.
@@ -163,6 +201,16 @@ Dirty Pipe - уязвимость в подсистеме каналов (pipe) 
 ![Рис. 6. Обновление ядра](screenshots/06_kernel_update.png)
 
 *Рис. 6. Установка актуального ядра из репозитория дистрибутива (пакет `linux-image-generic`). После установки требуется перезагрузка, затем повторная проверка `uname -r` и скриптом.*
+
+**Команды:**
+
+```bash
+sudo apt update
+sudo apt install --only-upgrade linux-image-generic
+sudo reboot
+# после перезагрузки:
+uname -r
+```
 
 - **Ubuntu/Debian:** `sudo apt update && sudo apt install --only-upgrade linux-image-generic`, затем перезагрузка.
 - **RHEL/Fedora/CentOS:** `sudo dnf update kernel`, затем перезагрузка.
