@@ -1,0 +1,12 @@
+# Лабораторный стенд CUPS. Порты НЕ публикуются наружу намеренно.
+# Работайте внутри контейнера: docker compose exec cups-lab bash
+services:
+  cups-lab:
+    build: .
+    container_name: cups-vuln-lab
+    # Порты умышленно не проброшены (ports:) - стенд изолирован.
+    # cap_add нужен для демонстрации правил iptables внутри контейнера:
+    cap_add:
+      - NET_ADMIN
+    tty: true
+    stdin_open: true

@@ -1,0 +1,29 @@
+# -*- mode: ruby -*-
+# Лабораторная ВМ с УЯЗВИМЫМ ядром Linux для CVE-2022-0847 (Dirty Pipe).
+# Ubuntu 21.10 (impish) штатно идёт с ядром 5.13 - подвержено Dirty Pipe
+# (исправлено только в 5.15.25 / 5.16.11 / 5.10.102).
+# ВНИМАНИЕ: учебная изолированная ВМ. Работать только локально.
+Vagrant.configure("2") do |config|
+  config.vm.box = "ubuntu/impish64"   # ядро 5.13.x (уязвимое)
+  config.vm.hostname = "dirtypipe-lab"
+  config.vm.network "private_network", type: "dhcp"
+
+  config.vm.provider "virtualbox" do |vb|
+    vb.name = "dirtypipe-lab"
+    vb.memory = 2048
+    vb.cpus = 2
+  end
+
+  # Копируем учебные скрипты в ВМ
+  config.vm.provision "file", source: "check_dirtypipe.sh", destination: "/tmp/check_dirtypipe.sh"
+  config.vm.provision "file", source: "fix_dirtypipe.sh",   destination: "/tmp/fix_dirtypipe.sh"
+  config.vm.provision "shell", inline: <<-SHELL
+    install -m 0755 /tmp/check_dirtypipe.sh /usr/local/bin/check_dirtypipe.sh
+    install -m 0755 /tmp/fix_dirtypipe.sh   /usr/local/bin/fix_dirtypipe.sh
+    echo "=============================================="
+    echo " ВМ запущена. Текущее ядро: $(uname -r)"
+    echo " Проверка:   check_dirtypipe.sh"
+    echo " Устранение: sudo fix_dirtypipe.sh  (затем reboot)"
+    echo "=============================================="
+  SHELL
+end

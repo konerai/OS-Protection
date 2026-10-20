@@ -1,0 +1,47 @@
+# -*- mode: ruby -*-
+# Единая учебная ВМ: уязвимое ядро (Dirty Pipe) + устаревший CUPS.
+# Загружается сразу в УЯЗВИМОМ состоянии. Скрипты проверки/устранения
+# уже лежат внутри. Предназначена для экспорта в OVA (см. build_ova.sh).
+#
+# ⚠️ Только изолированная учебная среда. Рабочего эксплойт-кода внутри нет -
+#    только средства обнаружения и устранения.
+Vagrant.configure("2") do |config|
+  # Базовый образ с ядром 5.13 (уязвимо к Dirty Pipe, исправление только
+  # в 5.10.102 / 5.15.25 / 5.16.11). Если impish недоступен - см. README.
+  config.vm.box = "ubuntu/impish64"
+  config.vm.hostname = "os-security-lab"
+  config.vm.network "private_network", type: "dhcp"
+
+  config.vm.provider "virtualbox" do |vb|
+    vb.name = "os-security-lab"
+    vb.memory = 2048
+    vb.cpus = 2
+  end
+
+  # Копируем все учебные скрипты в ВМ
+  %w[check_vuln.sh fix_vuln.sh check_dirtypipe.sh fix_dirtypipe.sh].each do |s|
+    config.vm.provision "file", source: "scripts/#{s}", destination: "/tmp/#{s}"
+  end
+
+  # Устанавливаем УСТАРЕВШИЕ (уязвимые) версии CUPS и раскладываем скрипты.
+  config.vm.provision "shell", inline: <<-SHELL
+    set -e
+    export DEBIAN_FRONTEND=noninteractive
+    for s in check_vuln.sh fix_vuln.sh check_dirtypipe.sh fix_dirtypipe.sh; do
+      install -m 0755 /tmp/$s /usr/local/bin/$s
+    done
+    apt-get update -y || true
+    # Ставим систему печати CUPS и cups-browsed (на impish - уязвимые версии)
+    apt-get install -y cups cups-browsed cups-filters iproute2 nmap net-tools || true
+    # Включаем приём удалённых анонсов (уязвимая конфигурация)
+    sed -i 's/^BrowseRemoteProtocols.*/BrowseRemoteProtocols dnssd cups/' \
+        /etc/cups/cups-browsed.conf || true
+    systemctl enable --now cups cups-browsed || true
+    echo "=========================================================="
+    echo " Учебная ВМ готова. Текущее состояние - УЯЗВИМОЕ."
+    echo " Ядро: $(uname -r)"
+    echo " Обнаружение:  check_vuln.sh   |  check_dirtypipe.sh"
+    echo " Устранение:   sudo fix_vuln.sh | sudo fix_dirtypipe.sh (+reboot)"
+    echo "=========================================================="
+  SHELL
+end
