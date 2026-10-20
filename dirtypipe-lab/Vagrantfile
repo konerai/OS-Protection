@@ -2,7 +2,6 @@
 # Лабораторная ВМ с УЯЗВИМЫМ ядром Linux для CVE-2022-0847 (Dirty Pipe).
 # Ubuntu 21.10 (impish) штатно идёт с ядром 5.13 - подвержено Dirty Pipe
 # (исправлено только в 5.15.25 / 5.16.11 / 5.10.102).
-# ВНИМАНИЕ: учебная изолированная ВМ. Работать только локально.
 Vagrant.configure("2") do |config|
   config.vm.box = "ubuntu/impish64"   # ядро 5.13.x (уязвимое)
   config.vm.hostname = "dirtypipe-lab"
